@@ -74,3 +74,5 @@ A. Lógica del juego — flujo paso a paso (estado y acciones)
 7. Casos extremos
     Si deck se agota y ninguno puede jugar → se declara empate 
     Evitar bucles infinitos: en UI no permitir robar automáticamente sin límites (se hace secuencial y se actualiza la interfaz).
+
+    I
