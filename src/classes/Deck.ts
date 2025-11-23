@@ -25,7 +25,7 @@ export class Deck implements IDeck {
     }
 
     //crear metodo para repartir 
-    public get dealCard(): Card | undefined {
+    public dealCard(): Card | undefined {
         return this.cards.pop(); //sacar ultima carta del array, la que est[a encima
     }
 }
