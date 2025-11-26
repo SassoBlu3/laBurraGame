@@ -7,4 +7,5 @@ export interface IPlayer {
   playCard(cardIndex: number): Card | null;
   drawCard(card: Card): void;
   canPlaySuit(suit: string): boolean //para saber si el jugador tiene una carta que se pueda jugar del palo especifico
+  showHand(): void;
 }
