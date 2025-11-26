@@ -8,6 +8,50 @@
     <title>La Burra Game</title>
 </head>
 <body>
-    <h1>La Burra Game</h1>
-    <img src="./assets/cover.jpg" alt="Portada del juego" class="cover-image">
+  <section id="start-screen">
+        <div class="intro-content">
+             <h1>La Burra Game</h1>
+             <img src="src\img\portada.png.png" alt="Portada del juego" class="cover-image" onerror="this.style.display='none'">
+            <br>
+            <button id="btn-start" class="btn-primary">JUGAR AHORA</button>
+        </div>
+    </section>
+
+     <main id="game-board" class="hidden">
+        
+        <!--cartas de CPU arriba-->
+        <div id="cpu-zone" class="player-zone">
+            <h3>CPU</h3>
+           
+            <div id="cpu-hand" class="hand"></div>
+        </div>
+
+        <!-- tablero en el centro -->
+        <div id="table-zone">
+            <!-- Mazo -->
+            <div class="deck-area">
+                <!-- imagen del reverso de las cartas del cpu -->
+                <div id="deck" class="card-back"></div>
+                <span>Mazo</span>
+            </div>
+
+            <!-- Carta del Palo Actual -->
+            <div class="play-area">
+                <!-- imagen de carta en juego -->
+                <div id="active-card-placeholder" class="card-slot"></div>
+                <span>Palo Actual</span>
+            </div>
+        </div>
+
+        <!-- carta de juegador humano abajo -->
+        <div id="player-zone" class="player-zone">
+            <!-- imagen de cartas en mano del jugador humano -->
+            <div id="human-hand" class="hand"></div>
+            <h3>Tu Mano</h3>
+        </div>
+
+    </main>
+
+    <script type="module" src="./src/index.ts"></script>
+</body>
 </html>
