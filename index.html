@@ -1,57 +1,69 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <script src="../dist/index.js" type="module" async></script>
-    <link rel="stylesheet" href="./styles/style.css">
+    <!-- CORRECCIÓN: Apuntar al JS compilado en ./dist -->
+    <script src="./dist/index.js" type="module" defer></script>
+    <!-- CORRECCIÓN: Apuntar al CSS en la raíz -->
+    <link rel="stylesheet" href="./styles.css">
     <title>La Burra Game</title>
 </head>
+
 <body>
-  <section id="start-screen">
+    <section id="start-screen">
         <div class="intro-content">
-             <h1>La Burra Game</h1>
-             <img src="src\img\portada.png.png" alt="Portada del juego" class="cover-image" onerror="this.style.display='none'">
+            <h1>La Burra Game</h1>
+            <!-- CORRECCIÓN: Ruta de la imagen arreglada -->
+            <img src="./src/img/portada.png" alt="Portada del juego" class="cover-image">
             <br>
             <button id="btn-start" class="btn-primary">JUGAR AHORA</button>
         </div>
     </section>
 
-     <main id="game-board" class="hidden">
-        
-        <!--cartas de CPU arriba-->
-        <div id="cpu-zone" class="player-zone">
-            <h3>CPU</h3>
-           
+    <!-- Tablero de Juego -->
+    <div id="game-board" class="hidden">
+        <!-- Barra superior de información -->
+        <div class="top-bar">
+            <div id="turn-indicator" class="turn-indicator">Tu turno</div>
+            <div id="deck-info">Mazo: <span id="deck-count">0</span></div>
+            <button id="btn-restart" class="btn-small">Reiniciar</button>
+        </div>
+
+        <!-- Mensaje de estado / Palo inicial -->
+        <div id="game-message" class="game-message">
+            Palo inicial: <span id="initial-suit-display">?</span>. Juega una carta del mismo palo.
+        </div>
+
+        <!-- Zona del CPU (arriba) -->
+        <div class="player-zone">
+            <h3>CPU (<span id="cpu-card-count">0</span> cartas)</h3>
             <div id="cpu-hand" class="hand"></div>
         </div>
 
-        <!-- tablero en el centro -->
+        <!-- Zona Central: Mesa de Juego -->
         <div id="table-zone">
-            <!-- Mazo -->
-            <div class="deck-area">
-                <!-- imagen del reverso de las cartas del cpu -->
-                <div id="deck" class="card-back"></div>
-                <span>Mazo</span>
-            </div>
-
-            <!-- Carta del Palo Actual -->
+            <!-- Área de juego (cartas jugadas) -->
             <div class="play-area">
-                <!-- imagen de carta en juego -->
-                <div id="active-card-placeholder" class="card-slot"></div>
-                <span>Palo Actual</span>
+                <div id="active-card-placeholder" class="card-slot">
+                    <span class="slot-label">Mesa</span>
+                </div>
+                <span>Carta en Mesa</span>
+            </div>
+
+            <!-- Indicador de Palo Actual -->
+            <div class="suit-indicator">
+                Palo en juego: <span id="current-suit-icon" class="suit-icon">♦</span>
             </div>
         </div>
 
-        <!-- carta de juegador humano abajo -->
-        <div id="player-zone" class="player-zone">
-            <!-- imagen de cartas en mano del jugador humano -->
+        <!-- Zona del Jugador Humano (abajo) -->
+        <div class="player-zone">
+            <h3>Tu Mano (<span id="human-card-count">0</span> cartas)</h3>
             <div id="human-hand" class="hand"></div>
-            <h3>Tu Mano</h3>
-        </div>
-
-    </main>
-
-    <script type="module" src="./src/index.ts"></script>
+    </div>
+    </div>
 </body>
+
 </html>

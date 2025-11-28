@@ -1,30 +1,36 @@
 import { Game } from "./classes/Game.js";
-import { HumanPlayer } from "./classes/HumanPlayer.js";
-import { CPUPlayer } from "./classes/CPUPlayer.js";
 import { IPlayer } from "./interfaces/IPlayer.js";
 
 // ------------------------------------------------
-// 1. OBTENER ELEMENTOS DEL DOM (DEL HTML)
+// 1. OBTENER ELEMENTOS DEL DOM
 // ------------------------------------------------
 const startScreen = document.getElementById('start-screen') as HTMLElement;
 const gameBoard = document.getElementById('game-board') as HTMLElement;
 const btnStart = document.getElementById('btn-start') as HTMLButtonElement;
+const btnRestart = document.getElementById('btn-restart') as HTMLButtonElement;
+
 const humanHandElement = document.getElementById('human-hand') as HTMLElement;
 const cpuHandElement = document.getElementById('cpu-hand') as HTMLElement;
 const activeCardSlot = document.getElementById('active-card-placeholder') as HTMLElement;
+
+// Indicadores
+const turnIndicator = document.getElementById('turn-indicator') as HTMLElement;
+const deckCountElement = document.getElementById('deck-count') as HTMLElement;
+const initialSuitDisplay = document.getElementById('initial-suit-display') as HTMLElement;
+const currentSuitIcon = document.getElementById('current-suit-icon') as HTMLElement;
+const cpuCardCount = document.getElementById('cpu-card-count') as HTMLElement;
+const humanCardCount = document.getElementById('human-card-count') as HTMLElement;
 
 let miJuego: Game;
 let jugadorHumano: IPlayer;
 let jugadorCPU: IPlayer;
 
 // ------------------------------------------------
-// 2. FUNCIONES DE RENDERIZADO (DIBUJAR EN PANTALLA)
+// 2. FUNCIONES DE RENDERIZADO
 // ------------------------------------------------
 
-// Crea una imagen HTML para una carta volteada (CPU o Mazo)
 function createCardBackElement(): HTMLDivElement {
     const cardBack = document.createElement('div');
-    // Usamos la clase CSS que ya tiene el background-image del dorso
     cardBack.className = 'card-back';
     return cardBack;
 }
@@ -38,12 +44,11 @@ function createCardImageElement(card: any, cardIndex: number, isPlayable: boolea
 
     // Agregamos un atributo de datos para saber su índice en la mano
     img.dataset.index = cardIndex.toString();
-    
+
     // Si la carta es jugable, le damos el cursor de pointer y un evento de click
     if (isPlayable) {
         img.addEventListener('click', () => handlePlayCard(cardIndex));
     }
-    
     return img;
 }
 
@@ -51,13 +56,16 @@ function createCardImageElement(card: any, cardIndex: number, isPlayable: boolea
 function renderHumanHand(player: IPlayer): void {
     // 1. Limpiamos el contenedor
     humanHandElement.innerHTML = '';
-    
-    // 2. Por ahora, asumimos que todas las cartas son jugables.
-    // La lógica de si una carta es legal o no va dentro de playTurn.
     player.hand.forEach((card, index) => {
-        const cardElement = createCardImageElement(card, index, true);
+        const isMyTurn = miJuego.isHumanTurn;
+        const cardElement = createCardImageElement(card, index, isMyTurn);
+        if (!isMyTurn) {
+            cardElement.style.cursor = 'not-allowed';
+            cardElement.style.opacity = '0.8';
+        }
         humanHandElement.appendChild(cardElement);
     });
+    humanCardCount.textContent = player.hand.length.toString();
 }
 
 // Dibuja la mano del CPU (solo reversos)
@@ -68,29 +76,49 @@ function renderCPUHand(player: IPlayer): void {
         const cardBackElement = createCardBackElement();
         cpuHandElement.appendChild(cardBackElement);
     });
+    cpuCardCount.textContent = player.hand.length.toString();
 }
 
-// Dibuja la carta activa en la mesa
-function renderActiveCard(suit: string): void {
+function renderActiveCard(): void {
     activeCardSlot.innerHTML = '';
-    
-    // Buscamos la primera carta con ese palo en el mazo (simplemente para usar su imagen)
-    // Esto es temporal hasta que tengamos el descarte.
-    const activeCard = jugadorHumano.hand.find(c => c.suit === suit) || jugadorCPU.hand.find(c => c.suit === suit);
 
-    if (activeCard) {
-        // Usamos el mismo elemento de imagen, pero sin evento de click
-        const img = createCardImageElement(activeCard, -1, false);
+    if (miJuego.activeCard) {
+        const img = document.createElement('img');
+        img.src = miJuego.activeCard.imageUrl;
+        img.className = 'card-img';
+        // Quitamos evento click
         activeCardSlot.appendChild(img);
+    } else {
+        activeCardSlot.innerHTML = '<span class="slot-label">Mesa</span>';
     }
 }
 
-// Función principal de dibujo para mantener la UI sincronizada
 function updateUI(): void {
-    if (miJuego) {
-        renderHumanHand(jugadorHumano);
-        renderCPUHand(jugadorCPU);
-        renderActiveCard(miJuego.currentSuit);
+    if (!miJuego) return;
+
+    renderHumanHand(jugadorHumano);
+    renderCPUHand(jugadorCPU);
+    renderActiveCard();
+
+    // Actualizar info textual
+    deckCountElement.textContent = miJuego.deck.cards.length.toString();
+    initialSuitDisplay.textContent = miJuego.currentSuit || "-";
+    currentSuitIcon.textContent = miJuego.currentSuit || "♦";
+
+    // Color del palo
+    if (miJuego.currentSuit === "♥" || miJuego.currentSuit === "♦") {
+        currentSuitIcon.style.color = "#e74c3c"; // Rojo
+    } else {
+        currentSuitIcon.style.color = "#2c3e50"; // Negro
+    }
+
+    // Indicador de turno
+    if (miJuego.isHumanTurn) {
+        turnIndicator.textContent = "Tu turno";
+        turnIndicator.style.color = "#f1c40f";
+    } else {
+        turnIndicator.textContent = "Turno de CPU...";
+        turnIndicator.style.color = "#bdc3c7";
     }
 }
 
@@ -98,33 +126,52 @@ function updateUI(): void {
 // 3. MANEJO DE EVENTOS Y JUEGO
 // ------------------------------------------------
 
-// Lógica que se ejecuta al hacer clic en una carta
-function handlePlayCard(cardIndex: number): void {
-    console.log(`Intentando jugar la carta en el índice: ${cardIndex}`);
-    
-    // Intentamos jugar el turno. El método Game.playTurn maneja la validación.
-    miJuego.playTurn(jugadorHumano, cardIndex);
+async function handlePlayCard(cardIndex: number): Promise<void> {
+    if (!miJuego.isHumanTurn) return;
 
-    // Actualizamos la interfaz después de la jugada
-    updateUI();
-    
-    // TODO: Pasar el turno a la CPU o al siguiente jugador.
+    // 1. Animación
+    const cardElement = document.querySelector(`img[data-index="${cardIndex}"]`) as HTMLElement;
+    const targetSlot = activeCardSlot;
+
+    if (cardElement && targetSlot) {
+        const cardRect = cardElement.getBoundingClientRect();
+        const slotRect = targetSlot.getBoundingClientRect();
+
+        const deltaX = slotRect.left - cardRect.left + (slotRect.width - cardRect.width) / 2;
+        const deltaY = slotRect.top - cardRect.top + (slotRect.height - cardRect.height) / 2;
+
+        cardElement.style.transition = 'transform 0.5s ease-in-out';
+        cardElement.style.transform = `translate(${deltaX}px, ${deltaY}px) scale(1.0)`;
+        cardElement.style.zIndex = '100';
+
+        await new Promise(resolve => setTimeout(resolve, 500));
+    }
+
+    // 2. Lógica
+    const success = miJuego.playTurn(jugadorHumano, cardIndex);
+
+    if (success) {
+        updateUI();
+    } else {
+        alert("¡No puedes jugar esa carta! Debes seguir el palo: " + miJuego.currentSuit);
+        updateUI();
+    }
 }
 
-
-// Función que inicia el juego (llamada por el botón)
 function initializeGame(): void {
-    // 1. Inicializar la lógica del juego
-    miJuego = new Game(["Jugador Humano"]); 
-    miJuego.startGame(); 
+    miJuego = new Game(["Jugador Humano"]);
+    miJuego.startGame();
 
-    // Obtener las referencias de los jugadores para el renderizado
     jugadorHumano = miJuego.players.find(p => p.isHuman) as IPlayer;
-    jugadorCPU = miJuego.players.find(p => p.name === "Computadora 🤖") as IPlayer;
+    jugadorCPU = miJuego.players.find(p => !p.isHuman) as IPlayer;
 
-    // 2. Mostrar la pantalla de juego
     startScreen.classList.add('hidden');
     gameBoard.classList.remove('hidden');
+
+    // Escuchar evento de cambio de estado (disparado por la instancia de juego)
+    miJuego.addEventListener('game-state-changed', () => {
+        updateUI();
+    });
 
     // 3. Dibujar el estado inicial de la mesa y las manos
     updateUI();
@@ -138,6 +185,4 @@ function initializeGame(): void {
 
 // Asignar el evento al botón de inicio
 btnStart.addEventListener('click', initializeGame);
-
-// Esto es solo para depuración inicial, puedes borrarlo después
-console.log("Aplicación cargada. Esperando clic en 'JUGAR AHORA'.");
+btnRestart.addEventListener('click', initializeGame);
