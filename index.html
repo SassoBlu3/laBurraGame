@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es">
 
 <head>
     <meta charset="UTF-8">
@@ -44,21 +44,40 @@
 
         <!-- Zona Central: Mesa de Juego -->
         <div id="table-zone">
-            <!-- Área de juego (cartas jugadas) -->
+            <div class="table-row">
+                <div class="deck-area">
+                     <div id="deck-pile" class="card-slot">
+                          <span class="slot-label">Mazo</span>
+            </div>
+            <span>Mazo (<span id="deck-count-display">0</span>)</span>
+        </div>
+
+        <!-- NUEVO: Carta jugada por CPU -->
+        <div class="play-area">
+            <div id="cpu-played-card" class="card-slot">
+                <span class="slot-label">-</span>
+            </div>
+            <span>CPU jugó</span>
+        </div>
+
+        <!-- NUEVO: Carta jugada por Humano -->
+        <div class="play-area">
+            <div id="human-played-card" class="card-slot">
+                <span class="slot-label">-</span>
+            </div>
+            <span>Tú jugaste</span>
+        </div>
+    </div>
+            <!-- Área de juego (cartas jugadas) 
             <div class="play-area">
+                
                 <div id="active-card-placeholder" class="card-slot">
                     <span class="slot-label">Mesa</span>
                 </div>
-                <span>Carta en Mesa</span>
-            </div>
+               
+            </div>-->
 
-            <!-- Indicador de Palo Actual -->
-            <div class="suit-indicator">
-                Palo en juego: <span id="current-suit-icon" class="suit-icon">♦</span>
-            </div>
-        </div>
-
-        <!-- Zona del Jugador Humano (abajo) -->
+                   <!-- Zona del Jugador Humano (abajo) -->
         <div class="player-zone">
             <h3>Tu Mano (<span id="human-card-count">0</span> cartas)</h3>
             <div id="human-hand" class="hand"></div>

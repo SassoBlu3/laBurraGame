@@ -10,27 +10,46 @@ export class Game extends EventTarget implements IGame {
     deck: Deck;
     activeCard: Card | null = null;
     currentSuit: string = "";
-    isHumanTurn: boolean = true; // Control de turno
+    isHumanTurn: boolean = true;
+    isFirstRound: boolean = true;
+
+    humanPlayedCard: Card | null = null;
+    cpuPlayedCard: Card | null = null;
+
+    roundWinner: 'human' | 'cpu' | null = null;
+
+    gameOver: boolean = false;
+    gameWinner: 'human' | 'cpu' | null = null;
 
     constructor(playerNames: string[]) {
-        super(); // Necesario al extender EventTarget
+        super();
+
         this.deck = new Deck();
         this.deck.shuffle();
 
         this.players.push(new HumanPlayer("player-1", playerNames[0]));
-        this.players.push(new CPUPlayer()); // Usar la clase correcta
+        this.players.push(new CPUPlayer());
 
-        console.log("Jugadores iniciados:");
+        console.log("Jugadores iniciados.");
     }
 
-    // Inicia la partida
-    public startGame(): void {
+    // ===========================
+    //        START GAME
+    // ===========================
+    startGame(): void {
         console.log("INICIANDO PARTIDA");
-        this.deck = new Deck(); // Reiniciar mazo
+
+        this.deck = new Deck();
         this.deck.shuffle();
 
-        // Limpiar manos
+        // Reset estados
         this.players.forEach(p => p.hand = []);
+        this.isFirstRound = true;
+        this.humanPlayedCard = null;
+        this.cpuPlayedCard = null;
+        this.roundWinner = null;
+        this.gameOver = false;
+        this.gameWinner = null;
 
         // Repartir 5 cartas
         for (let i = 0; i < 5; i++) {
@@ -40,7 +59,7 @@ export class Game extends EventTarget implements IGame {
             });
         }
 
-        // Carta inicial en mesa
+        // Carta inicial
         const initialCard = this.deck.dealCard();
         if (initialCard) {
             this.activeCard = initialCard;
@@ -50,110 +69,175 @@ export class Game extends EventTarget implements IGame {
             );
         }
 
-        this.isHumanTurn = true; // Empieza el humano
+        this.isHumanTurn = true;
+        this.dispatchEvent(new CustomEvent("game-state-changed"));
     }
 
-    // Jugar turno del humano
-    public playTurn(player: IPlayer, cardIndex: number): boolean {
-        if (!this.isHumanTurn && player.isHuman) {
+    // ===========================
+    //       HUMAN TURN
+    // ===========================
+    playTurn(player: IPlayer, cardIndex: number): boolean {
+        if (!this.isHumanTurn) {
             console.warn("No es tu turno.");
             return false;
         }
 
-        const cardToPlay = player.hand[cardIndex]; // Solo mirar, no quitar todavía
+        const hasSuit = player.canPlaySuit(this.currentSuit);
+        const cardToPlay = player.hand[cardIndex];
 
         if (!cardToPlay) return false;
 
-        const hasSuit = player.canPlaySuit(this.currentSuit);
-
-        // Validación: Debe seguir el palo si tiene
-        if (hasSuit && cardToPlay.suit !== this.currentSuit) {
-            console.warn(
-                `${player.name}: NO puedes jugar ${cardToPlay.suit}. Debes jugar ${this.currentSuit}.`
-            );
-            return false; // Jugada inválida
+        if (!hasSuit) {
+            console.log(`${player.name} no tiene ${this.currentSuit} y debe robar.`);
+            this.handleDrawIfNecessary(player);
+            return false;
         }
 
-        // Si pasa validación, jugamos la carta
-        player.playCard(cardIndex); // Ahora sí la quitamos
+        if (cardToPlay.suit !== this.currentSuit) {
+            console.warn(`Debes jugar del palo ${this.currentSuit}.`);
+            return false;
+        }
+
+        // Carta válida
+        player.playCard(cardIndex);
         this.activeCard = cardToPlay;
-        this.currentSuit = cardToPlay.suit;
+        this.humanPlayedCard = cardToPlay;
+
         console.log(`${player.name} juega: ${cardToPlay.mostrarNombreCompleto()}`);
 
-        // Cambio de turno
         this.isHumanTurn = false;
 
-        // Programar turno CPU
-        setTimeout(() => this.playCPUTurn(), 1500);
+        this.dispatchEvent(new CustomEvent("game-state-changed"));
+
+        setTimeout(() => this.playCPUTurn(), 1000);
 
         return true;
     }
 
-    // Turno de la CPU
+    // ===========================
+    //        CPU TURN
+    // ===========================
     private playCPUTurn(): void {
         const cpu = this.players.find(p => !p.isHuman) as CPUPlayer;
         if (!cpu) return;
 
         console.log("Turno de CPU...");
 
-        // 1. Verificar si tiene carta del palo
         const hasSuit = cpu.canPlaySuit(this.currentSuit);
 
         if (hasSuit) {
-            // Estrategia simple: jugar la primera válida
             const cardIndex = cpu.hand.findIndex(c => c.suit === this.currentSuit);
-            if (cardIndex !== -1) {
-                const card = cpu.playCard(cardIndex);
-                if (card) {
-                    this.activeCard = card;
-                    this.currentSuit = card.suit; // El palo sigue siendo el mismo, o cambia si es nueva ronda (reglas simples por ahora)
-                    console.log(`CPU juega: ${card.mostrarNombreCompleto()}`);
-                }
+            const card = cpu.playCard(cardIndex);
+
+            if (card) {
+                this.activeCard = card;
+                this.cpuPlayedCard = card;
+                console.log(`CPU juega: ${card.mostrarNombreCompleto()}`);
             }
         } else {
-            // 2. Si no tiene, debe robar hasta encontrar o vaciar mazo
             this.handleDrawIfNecessary(cpu);
         }
 
-        // Volver turno al humano
-        this.isHumanTurn = true;
-        // Notificar a la UI (esto se haría idealmente con eventos, pero por ahora la UI sondeará o se actualizará tras el timeout)
-        // Como no tenemos eventos, la UI en index.ts necesitará saber cuándo actualizarse. 
-        // Por simplicidad, index.ts puede pasar un callback o sondear.
-        // Vamos a añadir un callback simple si es necesario, o dejar que index.ts maneje el estado.
-        // Notificar a la UI mediante un evento propio de la instancia Game
-        this.dispatchEvent(new CustomEvent('game-state-changed'));
+        this.determineRoundWinner();
+
+        if (!this.gameOver) {
+            this.isHumanTurn = this.roundWinner === "human";
+        }
+
+        this.dispatchEvent(new CustomEvent("game-state-changed"));
     }
 
-    // Robar carta si no tiene del palo actual
+    // ===========================
+    //     DETERMINAR GANADOR
+    // ===========================
+    private determineRoundWinner(): void {
+
+        if (!this.humanPlayedCard || !this.cpuPlayedCard) return;
+
+        const humanRank = this.getCardValue(this.humanPlayedCard);
+        const cpuRank = this.getCardValue(this.cpuPlayedCard);
+
+        console.log(`\n========== RONDA TERMINADA ==========`);
+        console.log(`Tu carta: ${this.humanPlayedCard.mostrarNombreCompleto()} (Rank: ${humanRank})`);
+        console.log(`CPU carta: ${this.cpuPlayedCard.mostrarNombreCompleto()} (Rank: ${cpuRank})`);
+
+        if (humanRank > cpuRank) {
+            this.roundWinner = "human";
+            this.currentSuit = this.humanPlayedCard.suit;
+            console.log("GANADOR DE LA RONDA: ¡TÚ!");
+        } else {
+            this.roundWinner = "cpu";
+            this.currentSuit = this.cpuPlayedCard.suit;
+            console.log("GANADOR DE LA RONDA: CPU");
+        }
+
+        setTimeout(() => {
+            this.humanPlayedCard = null;
+            this.cpuPlayedCard = null;
+            this.dispatchEvent(new CustomEvent("game-state-changed"));
+        }, 1500);
+
+        this.isFirstRound = false;
+
+        this.checkGameOver();
+    }
+
+    // ===========================
+    //        CARD VALUES
+    // ===========================
+    private getCardValue(card: Card): number {
+        const rankValues: Record<string, number> = {
+            "2": 2, "3": 3, "4": 4, "5": 5, "6": 6, "7": 7,
+            "8": 8, "9": 9, "10": 10,
+            "J": 11, "Q": 12, "K": 13, "A": 14
+        };
+        return rankValues[card.rank] || 0;
+    }
+
+    // ===========================
+    //      CHECK GAME OVER
+    // ===========================
+    private checkGameOver(): boolean {
+        for (const player of this.players) {
+            if (player.hand.length === 0) {
+                this.gameOver = true;
+                this.gameWinner = player.isHuman ? "human" : "cpu";
+                console.log(`${player.name} ganó la partida!`);
+                this.dispatchEvent(new CustomEvent("game-over", {
+                    detail: { winner: this.gameWinner }
+                }));
+                return true;
+            }
+        }
+        return false;
+    }
+
+    // ===========================
+    //     DRAW IF NECESSARY
+    // ===========================
     public handleDrawIfNecessary(player: IPlayer): void {
         console.log(`${player.name} no tiene ${this.currentSuit}. Debe robar.`);
 
-        let drawnCard: Card | undefined;
-        let found = false;
-
-        // Límite de seguridad para no colgar
-        let attempts = 0;
-        while (!found && this.deck.cards.length > 0 && attempts < 50) {
-            drawnCard = this.deck.dealCard();
-            attempts++;
+        while (this.deck.cards.length > 0) {
+            const drawnCard = this.deck.dealCard();
 
             if (drawnCard) {
                 player.drawCard(drawnCard);
                 console.log(`...roba: ${drawnCard.mostrarNombreCompleto()}`);
 
                 if (drawnCard.suit === this.currentSuit) {
-                    found = true;
-                    // Jugarla inmediatamente
-                    const index = player.hand.length - 1;
-                    const played = player.playCard(index);
+                    const idx = player.hand.length - 1;
+                    const played = player.playCard(idx);
+
                     if (played) {
                         this.activeCard = played;
-                        // this.currentSuit se mantiene
                         console.log(`¡${player.name} encontró y jugó: ${played.mostrarNombreCompleto()}`);
                     }
+                    break;
                 }
             }
         }
+
+        this.dispatchEvent(new CustomEvent("game-state-changed"));
     }
 }
